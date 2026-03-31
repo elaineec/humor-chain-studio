@@ -24,6 +24,7 @@ type ApiResult = {
   endpoint?: string
   data?: unknown
   error?: string
+  details?: unknown
 }
 
 export default function PromptLabPage() {
@@ -164,7 +165,11 @@ export default function PromptLabPage() {
 
       const result = (await response.json()) as ApiResult
       if (!response.ok) {
-        throw new Error(typeof result?.error === 'string' ? result.error : 'Prompt test failed.')
+        const detailText =
+          result?.details === undefined ? '' : `\n\n${JSON.stringify(result.details, null, 2)}`
+        throw new Error(
+          `${typeof result?.error === 'string' ? result.error : 'Prompt test failed.'}${detailText}`
+        )
       }
 
       setResponseText(JSON.stringify(result, null, 2))
