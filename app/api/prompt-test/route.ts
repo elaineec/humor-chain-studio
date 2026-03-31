@@ -21,22 +21,29 @@ export async function POST(request: Request) {
       .eq('id', user.id)
       .maybeSingle()
 
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
     const canAccess = profile?.is_superadmin === true || profile?.is_matrix_admin === true
     if (!canAccess) {
       return NextResponse.json({ error: 'Forbidden.' }, { status: 403 })
     }
 
     const body = (await request.json()) as { endpoint?: string; payload?: unknown }
-    const endpoint = body.endpoint?.trim() || '/pipeline/generate_captions'
+    const endpoint = body.endpoint?.trim() || '/pipeline/generate-captions'
     const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
-    const payload = body.payload ?? {}
+    const payload = normalizePromptPayload(body.payload)
 
     const base = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.almostcrackd.ai'
     const url = `${base}${normalizedEndpoint}`
 
     const upstream = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
       body: JSON.stringify(payload),
       cache: 'no-store',
     })
@@ -61,4 +68,20 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : 'Request failed.'
     return NextResponse.json({ error: message }, { status: 500 })
   }
+}
+
+function normalizePromptPayload(payload: unknown) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return {}
+
+  const normalized = { ...(payload as Record<string, unknown>) }
+
+  if ('image_id' in normalized && !('imageId' in normalized)) {
+    normalized.imageId = normalized.image_id
+  }
+
+  if ('humor_flavor_id' in normalized && !('humorFlavorId' in normalized)) {
+    normalized.humorFlavorId = normalized.humor_flavor_id
+  }
+
+  return normalized
 }

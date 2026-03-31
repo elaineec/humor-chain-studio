@@ -27,13 +27,13 @@ type ApiResult = {
 }
 
 export default function PromptLabPage() {
-  const [endpoint, setEndpoint] = useState('/pipeline/generate_captions')
+  const [endpoint, setEndpoint] = useState('/pipeline/generate-captions')
   const [flavors, setFlavors] = useState<FlavorOption[]>([])
   const [steps, setSteps] = useState<StepRow[]>([])
   const [images, setImages] = useState<TestImage[]>([])
   const [selectedFlavorId, setSelectedFlavorId] = useState('')
   const [selectedImageId, setSelectedImageId] = useState('')
-  const [payloadText, setPayloadText] = useState('{\n  "image_id": "",\n  "humor_flavor_id": ""\n}')
+  const [payloadText, setPayloadText] = useState('{\n  "imageId": "",\n  "humorFlavorId": ""\n}')
   const [loading, setLoading] = useState(false)
   const [booting, setBooting] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -131,8 +131,8 @@ export default function PromptLabPage() {
     setPayloadText(
       JSON.stringify(
         {
-          image_id: selectedImageId || '',
-          humor_flavor_id: selectedFlavorId || '',
+          imageId: selectedImageId || '',
+          humorFlavorId: selectedFlavorId || '',
         },
         null,
         2
@@ -213,16 +213,16 @@ export default function PromptLabPage() {
                   >
                     <option value="">Choose humor flavor</option>
                     {flavors.map((flavor) => (
-                      <option key={flavor.id} value={flavor.id}>
-                        {flavor.label}
-                      </option>
-                    ))}
-                  </select>
+                    <option key={flavor.id} value={flavor.id}>
+                      {flavor.label}
+                    </option>
+                  ))}
+                </select>
                   <input
                     className="input"
                     value={endpoint}
                     onChange={(event) => setEndpoint(event.target.value)}
-                    placeholder="/pipeline/generate_captions"
+                    placeholder="/pipeline/generate-captions"
                   />
                   <select
                     className="input"
