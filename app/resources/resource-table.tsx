@@ -711,12 +711,14 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
       {error && <p className="notice error">{error}</p>}
       {resource.slug === 'humor-flavors' && !loading && (
         <section className="panel">
-          <h2>Flavor step inspector</h2>
+          <h2>{query.trim() ? 'Matching flavors' : 'Flavor step inspector'}</h2>
           <p className="sub">
-            Each humor flavor below includes its prompt-chain steps from <code>humor_flavor_steps</code>.
+            {query.trim()
+              ? `Showing flavor cards that match "${query.trim()}" across name, description, and related fields.`
+              : 'Each humor flavor below includes its prompt-chain steps from `humor_flavor_steps`.'}
           </p>
           <div className="flavor-grid">
-            {rows.map((row, index) => {
+            {filteredRows.map((row, index) => {
               const flavorId = row.id
               const flavorKey =
                 typeof flavorId === 'number' || typeof flavorId === 'string'
@@ -773,6 +775,12 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
               )
             })}
           </div>
+          {filteredRows.length === 0 && (
+            <div className="flavor-empty">
+              <span className="tag muted">No matches</span>
+              <p className="sub">Try a different flavor name, description term, or clear the search.</p>
+            </div>
+          )}
         </section>
       )}
       {loading ? (
