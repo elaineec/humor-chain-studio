@@ -377,6 +377,21 @@ function stepSummary(step: StepRow, index: number) {
 }
 
 function stepPromptPreview(step: StepRow) {
+  const stepType = typeof step.humor_flavor_step_type_id === 'number' ? step.humor_flavor_step_type_id : null
+  const order = typeof step.order_by === 'number' ? step.order_by : null
+
+  if (stepType === 1 || order === 1) {
+    return 'Find the main subject, recognizable references, and the most important visual details in the image.'
+  }
+
+  if (stepType === 2 || order === 2) {
+    return 'Turn the image details into the target humor style while keeping the scene description clear and useful.'
+  }
+
+  if (stepType === 3 || order === 3) {
+    return 'Use the earlier step outputs to generate five short, playful, meme-ready caption options with clean wording.'
+  }
+
   const candidates = [
     step.llm_user_prompt,
     step.llm_system_prompt,
@@ -387,7 +402,7 @@ function stepPromptPreview(step: StepRow) {
 
   for (const value of candidates) {
     if (typeof value === 'string' && value.trim()) {
-      return value.length > 240 ? `${value.slice(0, 237)}...` : value
+      return sanitizePromptPreview(value)
     }
   }
 
@@ -413,4 +428,14 @@ function defaultStepTitle(step: StepRow, index: number) {
   if (order === 2) return 'Develop the comedic angle'
   if (order === 3) return 'Write the captions'
   return 'Prompt chain step'
+}
+
+function sanitizePromptPreview(value: string) {
+  return value
+    .replace(/\$\{step\d+Output\}/g, 'previous step output')
+    .replace(/\*{3,}/g, ' ')
+    .replace(/\bshit\b/gi, 'language')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 240)
 }
