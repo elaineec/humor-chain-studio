@@ -118,6 +118,7 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
   }, [columns, resource.slug])
 
   const primaryKey = useMemo(() => inferPrimaryKey(rows), [rows])
+  const availableColumns = useMemo(() => new Set(rows.flatMap((row) => Object.keys(row))), [rows])
   const canCreate = resource.mode === 'crud'
   const canDelete = resource.mode === 'crud'
   const canUpdate = resource.mode === 'crud' || resource.mode === 'update'
@@ -242,21 +243,25 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
       const payload = editorMode === 'guided' ? parseGuidedPayload() : parseEditorPayload()
 
       if (canUpdate && editKey !== null && primaryKey) {
+        const updatePayload: GenericRow = { ...payload }
+        if (availableColumns.has('modified_by_user_id')) {
+          updatePayload.modified_by_user_id = actorId
+        }
         const { error: updateError } = await supabase
           .from(activeTable)
-          .update({
-            ...payload,
-            modified_by_user_id: actorId,
-          })
+          .update(updatePayload)
           .eq(primaryKey, editKey)
         if (updateError) throw updateError
         setSuccessMessage(`Updated row ${String(editKey)} in ${resource.title}.`)
       } else if (canCreate) {
-        const { error: insertError } = await supabase.from(activeTable).insert({
-          ...payload,
-          created_by_user_id: actorId,
-          modified_by_user_id: actorId,
-        })
+        const insertPayload: GenericRow = { ...payload }
+        if (availableColumns.has('created_by_user_id')) {
+          insertPayload.created_by_user_id = actorId
+        }
+        if (availableColumns.has('modified_by_user_id')) {
+          insertPayload.modified_by_user_id = actorId
+        }
+        const { error: insertError } = await supabase.from(activeTable).insert(insertPayload)
         if (insertError) throw insertError
         setSuccessMessage(`Created a new row in ${resource.title}.`)
       } else {
@@ -268,7 +273,7 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
       setEditKey(null)
       await loadRows()
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Request failed.'
+      const message = getErrorMessage(err)
       setError(message)
     } finally {
       setSaving(false)
@@ -951,6 +956,15 @@ function castEntryValue(entry: FieldEntry): unknown {
     }
   }
   return entry.value
+}
+
+function getErrorMessage(err: unknown) {
+  if (err instanceof Error && err.message) return err.message
+  if (typeof err === 'object' && err !== null && 'message' in err) {
+    const message = (err as { message?: unknown }).message
+    if (typeof message === 'string' && message) return message
+  }
+  return 'Request failed.'
 }
 
 function objectToEntries(payload: GenericRow): FieldEntry[] {
