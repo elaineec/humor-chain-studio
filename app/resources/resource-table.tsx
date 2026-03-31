@@ -714,15 +714,22 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
               const description = typeof row.description === 'string' ? row.description : 'No description'
               const steps = flavorStepsByFlavorId[flavorKey] ?? []
               return (
-                <article className="panel" key={flavorKey}>
-                  <p className="eyebrow">Flavor {flavorKey}</p>
-                  <h3>{slug}</h3>
-                  <p className="sub">{description}</p>
-                  <a className="btn ghost" href={`/resources/captions?flavor=${flavorKey}`}>
-                    View produced captions
-                  </a>
+                <article className="panel flavor-card" key={flavorKey}>
+                  <div className="flavor-card-head">
+                    <div>
+                      <p className="eyebrow">Flavor {flavorKey}</p>
+                      <h3>{slug}</h3>
+                    </div>
+                    <span className="tag">{steps.length} steps</span>
+                  </div>
+                  <p className="sub flavor-card-description">{description}</p>
+                  <div className="flavor-card-actions">
+                    <a className="btn ghost" href={`/resources/captions?flavor=${flavorKey}`}>
+                      View captions
+                    </a>
+                  </div>
                   {steps.length ? (
-                    <ol className="step-list">
+                    <ol className="step-list flavor-step-list">
                       {steps.map((step, stepIndex) => {
                         const orderValue =
                           typeof step.order_by === 'number' ? step.order_by : stepIndex + 1
@@ -731,18 +738,24 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
                         const stepDesc =
                           typeof step.description === 'string' ? step.description : 'No description'
                         return (
-                          <li key={`${flavorKey}-step-${stepIndex}`}>
-                            <strong>Step {orderValue}</strong>
+                          <li className="flavor-step-card" key={`${flavorKey}-step-${stepIndex}`}>
+                            <div className="flavor-step-head">
+                              <strong>Step {orderValue}</strong>
+                              <div className="flavor-step-meta">
+                                <span className="tag muted">Type {stepType}</span>
+                                <span className="tag muted">Model {modelId}</span>
+                              </div>
+                            </div>
                             <span>{stepDesc}</span>
-                            <small>
-                              type:{stepType} model:{modelId}
-                            </small>
                           </li>
                         )
                       })}
                     </ol>
                   ) : (
-                    <p className="sub">No steps found for this flavor.</p>
+                    <div className="flavor-empty">
+                      <span className="tag muted">No steps yet</span>
+                      <p className="sub">Add flavor steps to turn this definition into a working prompt chain.</p>
+                    </div>
                   )}
                 </article>
               )

@@ -153,8 +153,8 @@ body {
 
 .flavor-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 14px;
 }
 
 .step-list {
@@ -171,6 +171,78 @@ body {
 
 .step-list small {
   color: var(--muted);
+}
+
+.flavor-card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-height: 100%;
+}
+
+.flavor-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.flavor-card h3 {
+  margin: 6px 0 0;
+  font-size: 18px;
+  line-height: 1.15;
+}
+
+.flavor-card-description {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 3.9em;
+}
+
+.flavor-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.flavor-step-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  gap: 10px;
+}
+
+.flavor-step-card {
+  border: 1px solid #d7e2ff;
+  border-radius: 16px;
+  padding: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(241, 246, 255, 0.92));
+}
+
+.flavor-step-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.flavor-step-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.flavor-empty {
+  display: grid;
+  gap: 8px;
+  border: 1px dashed #ceddff;
+  border-radius: 16px;
+  padding: 12px;
+  background: rgba(241, 246, 255, 0.56);
 }
 
 .stat-grid {
@@ -1370,6 +1442,16 @@ html[data-theme='dark'] .notice.success {
   background: linear-gradient(135deg, #10251a, #123320);
 }
 
+html[data-theme='dark'] .flavor-step-card {
+  border-color: #29467e;
+  background: linear-gradient(180deg, rgba(12, 24, 57, 0.92), rgba(16, 31, 71, 0.94));
+}
+
+html[data-theme='dark'] .flavor-empty {
+  border-color: #32508c;
+  background: rgba(10, 20, 48, 0.72);
+}
+
 html[data-theme='dark'] .code-block {
   background: #0b1224;
   border-color: #2b365f;
@@ -1485,5 +1567,18 @@ html[data-theme='dark'] .btn.ghost.active-mode {
   .status {
     padding: 6px 10px;
     font-size: 11px;
+  }
+
+  .flavor-card-head,
+  .flavor-step-head {
+    grid-template-columns: 1fr;
+  }
+
+  .flavor-step-head {
+    display: grid;
+  }
+
+  .flavor-step-meta {
+    justify-content: flex-start;
   }
 }
