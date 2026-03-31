@@ -1039,6 +1039,7 @@ function preferredFieldOrder(resourceSlug: string) {
       'humor_flavor_step_type_id',
       'llm_model_id',
       'llm_input_type_id',
+      'llm_output_type_id',
     ]
   }
 
@@ -1070,6 +1071,7 @@ function isPresetLockedField(resourceSlug: string, key: string) {
       'humor_flavor_step_type_id',
       'llm_model_id',
       'llm_input_type_id',
+      'llm_output_type_id',
     ].includes(key)
   }
 
@@ -1085,14 +1087,21 @@ function isPresetLockedFieldForAnyResource(key: string) {
     'humor_flavor_step_type_id',
     'llm_model_id',
     'llm_input_type_id',
+    'llm_output_type_id',
   ].includes(key)
 }
 
 function defaultFieldType(key: string): FieldInputType {
   if (
-    ['id', 'order_by', 'humor_flavor_id', 'humor_flavor_step_type_id', 'llm_model_id', 'llm_input_type_id'].includes(
-      key
-    )
+    [
+      'id',
+      'order_by',
+      'humor_flavor_id',
+      'humor_flavor_step_type_id',
+      'llm_model_id',
+      'llm_input_type_id',
+      'llm_output_type_id',
+    ].includes(key)
   ) {
     return 'number'
   }
@@ -1116,6 +1125,7 @@ function columnLabel(column: string, resourceSlug?: string) {
     humor_flavor_step_type_id: 'Step Type',
     llm_model_id: 'Model',
     llm_input_type_id: 'Input Type',
+    llm_output_type_id: 'Output Type',
     llm_provider_id: 'Provider',
     profile_id: 'Profile',
     image_id: 'Image',
