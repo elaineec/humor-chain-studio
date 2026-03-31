@@ -145,30 +145,33 @@ export default function DashboardPage() {
           <section className="chart-grid">
             <article className="panel">
               <h2>Recommended workflow</h2>
-              <div className="bar-list">
-                <div className="bar-row">
-                  <div className="bar-label">
-                    <span>1. Create or update flavor</span>
-                    <strong>/resources/humor-flavors</strong>
+              <div className="bar-list workflow-list">
+                <div className="bar-row workflow-row">
+                  <div className="bar-label workflow-label">
+                    <span>1. Create or update a flavor</span>
+                    <strong>Flavor Manager</strong>
                   </div>
+                  <p className="sub">Use Humor Flavors to define the style name and summary for the chain.</p>
                   <div className="bar-track">
                     <div className="bar-fill" style={{ width: '100%' }} />
                   </div>
                 </div>
-                <div className="bar-row">
-                  <div className="bar-label">
-                    <span>2. Edit and reorder steps</span>
-                    <strong>/resources/humor-flavor-steps</strong>
+                <div className="bar-row workflow-row">
+                  <div className="bar-label workflow-label">
+                    <span>2. Build the ordered step chain</span>
+                    <strong>Step Editor</strong>
                   </div>
+                  <p className="sub">Use Humor Flavor Steps to add prompts, set order, and tune the chain logic.</p>
                   <div className="bar-track">
                     <div className="bar-fill muted" style={{ width: '100%' }} />
                   </div>
                 </div>
-                <div className="bar-row">
-                  <div className="bar-label">
-                    <span>3. Test against API</span>
-                    <strong>/prompt-lab</strong>
+                <div className="bar-row workflow-row">
+                  <div className="bar-label workflow-label">
+                    <span>3. Run a live caption test</span>
+                    <strong>Test Lab</strong>
                   </div>
+                  <p className="sub">Pick a test image, call the API, and review the caption output before shipping changes.</p>
                   <div className="bar-track">
                     <div className="bar-fill" style={{ width: '100%' }} />
                   </div>
@@ -189,7 +192,8 @@ export default function DashboardPage() {
 
           <section className="panel-grid">
             <article className="panel">
-              <h2>Flavor coverage</h2>
+              <h2>Most built-out flavors</h2>
+              <p className="sub">Flavors with the strongest step coverage are the fastest to test and refine.</p>
               {flavorSummaries.length ? (
                 <ul className="data-list uploader-list">
                   {flavorSummaries.map((flavor) => (
@@ -210,11 +214,11 @@ export default function DashboardPage() {
             </article>
 
             <article className="panel">
-              <h2>Operator notes</h2>
+              <h2>Before you run a test</h2>
               <ul className="data-list">
-                <li><span>Only `profiles.is_superadmin` or `profiles.is_matrix_admin` users can access this app.</span></li>
-                <li><span>Use the caption resource view with a `flavor` filter to inspect outputs from a specific humor flavor.</span></li>
-                <li><span>Use Test Lab when you need live API output before promoting a flavor chain change.</span></li>
+                <li><span><strong>Access:</strong> Only superadmin or matrix-admin profiles can use this workspace.</span></li>
+                <li><span><strong>Review outputs:</strong> Open Generated Captions with a flavor filter to inspect everything a chain has produced.</span></li>
+                <li><span><strong>Use Test Lab for validation:</strong> Run a live API test before promoting any flavor or step change.</span></li>
               </ul>
             </article>
           </section>

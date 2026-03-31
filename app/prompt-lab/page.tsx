@@ -300,14 +300,18 @@ export default function PromptLabPage() {
           </section>
 
           <section className="panel">
-            <h2>Ordered prompt chain</h2>
+            <h2>How this flavor runs</h2>
+            <p className="sub">Read the chain in execution order. Each stage shows its role and the prompt text being sent to the model.</p>
             {steps.length ? (
-              <ol className="step-list">
+              <ol className="step-list chain-preview-list">
                 {steps.map((step, index) => (
-                  <li key={String(step.id ?? index)}>
-                    <strong>Step {typeof step.order_by === 'number' ? step.order_by : index + 1}</strong>
-                    <span>{stepSummary(step)}</span>
-                    <small>{stepPromptPreview(step)}</small>
+                  <li key={String(step.id ?? index)} className="chain-preview-card">
+                    <div className="chain-preview-head">
+                      <strong>Step {typeof step.order_by === 'number' ? step.order_by : index + 1}</strong>
+                      <span className="tag muted">{stepRole(step, index)}</span>
+                    </div>
+                    <span className="chain-preview-title">{stepSummary(step, index)}</span>
+                    <small className="chain-preview-prompt">{stepPromptPreview(step)}</small>
                   </li>
                 ))}
               </ol>
@@ -364,12 +368,12 @@ function extractCaptions(data: unknown): string[] {
   return []
 }
 
-function stepSummary(step: StepRow) {
+function stepSummary(step: StepRow, index: number) {
   const candidates = [step.name, step.slug, step.title, step.description, step.step_name]
   for (const value of candidates) {
     if (typeof value === 'string' && value.trim()) return value
   }
-  return 'Untitled chain step'
+  return defaultStepTitle(step, index)
 }
 
 function stepPromptPreview(step: StepRow) {
@@ -383,9 +387,30 @@ function stepPromptPreview(step: StepRow) {
 
   for (const value of candidates) {
     if (typeof value === 'string' && value.trim()) {
-      return value.length > 140 ? `${value.slice(0, 137)}...` : value
+      return value.length > 240 ? `${value.slice(0, 237)}...` : value
     }
   }
 
-  return 'No prompt preview available.'
+  return 'No prompt text saved for this step yet.'
+}
+
+function stepRole(step: StepRow, index: number) {
+  const order = typeof step.order_by === 'number' ? step.order_by : index + 1
+  if (order === 1) return 'Scene reading'
+  if (order === 2) return 'Style shaping'
+  if (order === 3) return 'Caption output'
+  return 'Chain stage'
+}
+
+function defaultStepTitle(step: StepRow, index: number) {
+  const stepType = typeof step.humor_flavor_step_type_id === 'number' ? step.humor_flavor_step_type_id : null
+  if (stepType === 1) return 'Identify the scene or subject'
+  if (stepType === 2) return 'Interpret the image in the target style'
+  if (stepType === 3) return 'Generate final caption options'
+
+  const order = typeof step.order_by === 'number' ? step.order_by : index + 1
+  if (order === 1) return 'Read the image'
+  if (order === 2) return 'Develop the comedic angle'
+  if (order === 3) return 'Write the captions'
+  return 'Prompt chain step'
 }

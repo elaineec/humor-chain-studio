@@ -173,6 +173,37 @@ body {
   color: var(--muted);
 }
 
+.chain-preview-list {
+  padding-left: 0;
+  list-style: none;
+  gap: 12px;
+}
+
+.chain-preview-card {
+  border: 1px solid #d7e2ff;
+  border-radius: 18px;
+  padding: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(242, 247, 255, 0.96));
+}
+
+.chain-preview-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.chain-preview-title {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.chain-preview-prompt {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .flavor-card {
   display: grid;
   align-content: start;
@@ -339,11 +370,22 @@ body {
   gap: 6px;
 }
 
+.workflow-row {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+}
+
 .bar-label {
   display: flex;
   justify-content: space-between;
   gap: 8px;
   font-size: 13px;
+}
+
+.workflow-label {
+  align-items: baseline;
 }
 
 .bar-track {
