@@ -4,35 +4,33 @@ import { useEffect, useState } from 'react'
 import AdminFrame from './components/AdminFrame'
 import { createSupabaseBrowserClient } from './lib/supabase/client'
 
-type MetricState = {
-  profiles: number
-  images: number
-  humorFlavors: number
-  humorFlavorSteps: number
-  captions: number
-  llmModels: number
+type OverviewStats = {
+  flavors: number
+  steps: number
+  testImages: number
+  generatedCaptions: number
 }
 
-type ResourcePulse = {
-  label: string
-  value: number
+type FlavorSummary = {
+  id: string
+  name: string
+  stepCount: number
 }
 
 export default function DashboardPage() {
-  const [metrics, setMetrics] = useState<MetricState>({
-    profiles: 0,
-    images: 0,
-    humorFlavors: 0,
-    humorFlavorSteps: 0,
-    captions: 0,
-    llmModels: 0,
+  const [stats, setStats] = useState<OverviewStats>({
+    flavors: 0,
+    steps: 0,
+    testImages: 0,
+    generatedCaptions: 0,
   })
+  const [flavorSummaries, setFlavorSummaries] = useState<FlavorSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const supabase = createSupabaseBrowserClient()
 
   useEffect(() => {
-    async function loadDashboard() {
+    async function loadOverview() {
       if (!supabase) {
         setError('Missing Supabase environment variables.')
         setLoading(false)
@@ -42,22 +40,22 @@ export default function DashboardPage() {
       setLoading(true)
       setError(null)
 
-      const [profilesCount, imagesCount, flavorCount, stepCount, captionsCount, modelCount] = await Promise.all([
-        supabase.from('profiles').select('id', { count: 'exact', head: true }),
-        supabase.from('images').select('id', { count: 'exact', head: true }),
+      const [flavorCount, stepCount, imageCount, captionCount, flavorsRes, stepsRes] = await Promise.all([
         supabase.from('humor_flavors').select('id', { count: 'exact', head: true }),
         supabase.from('humor_flavor_steps').select('id', { count: 'exact', head: true }),
+        supabase.from('images').select('id', { count: 'exact', head: true }),
         supabase.from('captions').select('id', { count: 'exact', head: true }),
-        supabase.from('llm_models').select('id', { count: 'exact', head: true }),
+        supabase.from('humor_flavors').select('id, slug, description').limit(12),
+        supabase.from('humor_flavor_steps').select('id, humor_flavor_id').limit(1000),
       ])
 
       const firstError =
-        profilesCount.error ||
-        imagesCount.error ||
         flavorCount.error ||
         stepCount.error ||
-        captionsCount.error ||
-        modelCount.error
+        imageCount.error ||
+        captionCount.error ||
+        flavorsRes.error ||
+        stepsRes.error
 
       if (firstError) {
         setError(firstError.message)
@@ -65,121 +63,158 @@ export default function DashboardPage() {
         return
       }
 
-      setMetrics({
-        profiles: profilesCount.count ?? 0,
-        images: imagesCount.count ?? 0,
-        humorFlavors: flavorCount.count ?? 0,
-        humorFlavorSteps: stepCount.count ?? 0,
-        captions: captionsCount.count ?? 0,
-        llmModels: modelCount.count ?? 0,
+      setStats({
+        flavors: flavorCount.count ?? 0,
+        steps: stepCount.count ?? 0,
+        testImages: imageCount.count ?? 0,
+        generatedCaptions: captionCount.count ?? 0,
       })
 
+      const countsByFlavor = new Map<string, number>()
+      for (const row of (stepsRes.data ?? []) as Array<Record<string, unknown>>) {
+        const flavorId = row.humor_flavor_id
+        if (typeof flavorId !== 'string' && typeof flavorId !== 'number') continue
+        const key = String(flavorId)
+        countsByFlavor.set(key, (countsByFlavor.get(key) ?? 0) + 1)
+      }
+
+      const flavors = ((flavorsRes.data ?? []) as Array<Record<string, unknown>>)
+        .map((row) => {
+          const id = typeof row.id === 'string' || typeof row.id === 'number' ? String(row.id) : null
+          if (!id) return null
+          const slug = typeof row.slug === 'string' ? row.slug : `Flavor ${id}`
+          return {
+            id,
+            name: slug,
+            stepCount: countsByFlavor.get(id) ?? 0,
+          }
+        })
+        .filter((item): item is FlavorSummary => Boolean(item))
+        .sort((a, b) => b.stepCount - a.stepCount)
+        .slice(0, 5)
+
+      setFlavorSummaries(flavors)
       setLoading(false)
     }
 
-    void loadDashboard()
+    void loadOverview()
   }, [supabase])
-
-  const resourcePulse: ResourcePulse[] = [
-    { label: 'Profiles', value: metrics.profiles },
-    { label: 'Images', value: metrics.images },
-    { label: 'Humor Flavors', value: metrics.humorFlavors },
-    { label: 'Flavor Steps', value: metrics.humorFlavorSteps },
-    { label: 'Captions', value: metrics.captions },
-    { label: 'LLM Models', value: metrics.llmModels },
-  ]
-  const maxPulse = Math.max(...resourcePulse.map((item) => item.value), 1)
 
   return (
     <AdminFrame
       section="dashboard"
-      title="Domain Model Admin"
-      subtitle="Manage the staging data model, then use the same workspace to create and test your humor flavor."
+      title="Humor Chain Studio"
+      subtitle="Build humor flavors, manage ordered steps, and validate prompt chains against your image test set."
     >
       {error && <p className="notice error">{error}</p>}
       {loading ? (
-        <p className="sub">Loading dashboard…</p>
+        <p className="sub">Loading workspace…</p>
       ) : (
         <>
           <section className="hero-panel">
-            <p className="eyebrow">Admin Overview</p>
-            <h2>Full domain-model coverage with a built-in humor flavor testing workspace.</h2>
+            <p className="eyebrow">Prompt Chain Workspace</p>
+            <h2>Flavor definitions, ordered step chains, and caption testing in one place.</h2>
             <p className="sub">
-              Use Resource Directory for the assignment tables, then move into Test Lab to create and validate your own humor flavor.
+              Use Flavor Manager for CRUD and reordering, then move into Test Lab to run your current chain against the API.
             </p>
           </section>
 
           <section className="stat-grid">
             <article className="stat-card">
-              <p className="eyebrow">Profiles</p>
-              <strong>{metrics.profiles.toLocaleString()}</strong>
-              <small>Users available in `profiles`</small>
+              <p className="eyebrow">Humor Flavors</p>
+              <strong>{stats.flavors.toLocaleString()}</strong>
+              <small>Total flavor definitions available</small>
             </article>
             <article className="stat-card">
-              <p className="eyebrow">Images</p>
-              <strong>{metrics.images.toLocaleString()}</strong>
-              <small>Image rows and upload targets</small>
+              <p className="eyebrow">Flavor Steps</p>
+              <strong>{stats.steps.toLocaleString()}</strong>
+              <small>Ordered prompt-chain steps</small>
             </article>
             <article className="stat-card">
-              <p className="eyebrow">Humor System</p>
-              <strong>{metrics.humorFlavors.toLocaleString()}</strong>
-              <small>Humor flavors currently loaded</small>
+              <p className="eyebrow">Test Images</p>
+              <strong>{stats.testImages.toLocaleString()}</strong>
+              <small>Images available for API testing</small>
             </article>
             <article className="stat-card">
-              <p className="eyebrow">Captions</p>
-              <strong>{metrics.captions.toLocaleString()}</strong>
-              <small>Caption outputs available to review</small>
+              <p className="eyebrow">Generated Captions</p>
+              <strong>{stats.generatedCaptions.toLocaleString()}</strong>
+              <small>Caption outputs stored in the dataset</small>
             </article>
           </section>
 
           <section className="chart-grid">
             <article className="panel">
-              <h2>Resource pulse</h2>
+              <h2>Recommended workflow</h2>
               <div className="bar-list">
-                {resourcePulse.map((item) => {
-                  const width = Math.round((item.value / maxPulse) * 100)
-                  return (
-                    <div className="bar-row" key={item.label}>
-                      <div className="bar-label">
-                        <span>{item.label}</span>
-                        <strong>{item.value.toLocaleString()}</strong>
-                      </div>
-                      <div className="bar-track">
-                        <div className="bar-fill" style={{ width: `${width}%` }} />
-                      </div>
-                    </div>
-                  )
-                })}
+                <div className="bar-row">
+                  <div className="bar-label">
+                    <span>1. Create or update flavor</span>
+                    <strong>/resources/humor-flavors</strong>
+                  </div>
+                  <div className="bar-track">
+                    <div className="bar-fill" style={{ width: '100%' }} />
+                  </div>
+                </div>
+                <div className="bar-row">
+                  <div className="bar-label">
+                    <span>2. Edit and reorder steps</span>
+                    <strong>/resources/humor-flavor-steps</strong>
+                  </div>
+                  <div className="bar-track">
+                    <div className="bar-fill muted" style={{ width: '100%' }} />
+                  </div>
+                </div>
+                <div className="bar-row">
+                  <div className="bar-label">
+                    <span>3. Test against API</span>
+                    <strong>/prompt-lab</strong>
+                  </div>
+                  <div className="bar-track">
+                    <div className="bar-fill" style={{ width: '100%' }} />
+                  </div>
+                </div>
               </div>
             </article>
 
             <article className="panel">
-              <h2>Assignment coverage</h2>
+              <h2>What this tool covers</h2>
               <ul className="data-list">
-                <li><span>Profiles, images, captions, and caption requests are available.</span></li>
-                <li><span>Humor flavors, steps, and humor mix can be reviewed and managed.</span></li>
-                <li><span>Terms, examples, models, providers, and access tables support CRUD.</span></li>
-                <li><span>Prompt chains and LLM responses remain readable for inspection.</span></li>
+                <li><span>Create, update, delete, and inspect humor flavors.</span></li>
+                <li><span>Create, update, delete, and reorder humor flavor steps.</span></li>
+                <li><span>Read captions produced by a selected humor flavor.</span></li>
+                <li><span>Run test requests through <code>api.almostcrackd.ai</code>.</span></li>
               </ul>
             </article>
           </section>
 
           <section className="panel-grid">
             <article className="panel">
-              <h2>Recommended sequence</h2>
-              <ul className="data-list">
-                <li><span>Open Resource Directory and verify the required table exists.</span></li>
-                <li><span>Use Humor Flavors and Humor Flavor Steps to create or tune your flavor.</span></li>
-                <li><span>Use Test Lab to generate captions with the REST API and inspect outputs.</span></li>
-              </ul>
+              <h2>Flavor coverage</h2>
+              {flavorSummaries.length ? (
+                <ul className="data-list uploader-list">
+                  {flavorSummaries.map((flavor) => (
+                    <li key={flavor.id}>
+                      <div className="uploader-head">
+                        <span>{flavor.name}</span>
+                        <strong>{flavor.stepCount} steps</strong>
+                      </div>
+                      <div className="bar-track">
+                        <div className="bar-fill" style={{ width: `${Math.max(10, flavor.stepCount * 10)}%` }} />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="sub">No humor flavors found yet.</p>
+              )}
             </article>
 
             <article className="panel">
-              <h2>Admin note</h2>
+              <h2>Operator notes</h2>
               <ul className="data-list">
-                <li><span>This app is gated to `profiles.is_superadmin` or `profiles.is_matrix_admin` users only.</span></li>
-                <li><span>Use the caption resource view with a `flavor` query parameter from Test Lab to review outputs for a specific humor flavor.</span></li>
-                <li><span>The same workspace now covers both the domain model assignment and your flavor testing requirement.</span></li>
+                <li><span>Only `profiles.is_superadmin` or `profiles.is_matrix_admin` users can access this app.</span></li>
+                <li><span>Use the caption resource view with a `flavor` filter to inspect outputs from a specific humor flavor.</span></li>
+                <li><span>Use Test Lab when you need live API output before promoting a flavor chain change.</span></li>
               </ul>
             </article>
           </section>
