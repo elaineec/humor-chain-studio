@@ -741,6 +741,16 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
                     <a className="btn ghost" href={`/resources/captions?flavor=${flavorKey}`}>
                       View captions
                     </a>
+                    {canUpdate && (
+                      <button className="btn ghost" onClick={() => beginEdit(row)}>
+                        Edit
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button className="btn danger" onClick={() => void handleDelete(row)}>
+                        Delete
+                      </button>
+                    )}
                   </div>
                   {steps.length ? (
                     <ol className="step-list flavor-step-list">
@@ -785,7 +795,7 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
       )}
       {loading ? (
         <p className="sub">Loading rows…</p>
-      ) : (
+      ) : resource.slug === 'humor-flavors' ? null : (
         <div className="table-wrap">
           <table className="data-table">
             <thead>
