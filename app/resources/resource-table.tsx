@@ -77,8 +77,18 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
       'created_by_user_id',
       'modified_by_user_id',
     ])
-    return columns.filter((column) => !reserved.has(column))
-  }, [columns])
+    const filtered = columns.filter((column) => !reserved.has(column))
+    const preferredOrder = preferredFieldOrder(resource.slug)
+
+    return filtered.sort((a, b) => {
+      const ai = preferredOrder.indexOf(a)
+      const bi = preferredOrder.indexOf(b)
+      if (ai === -1 && bi === -1) return a.localeCompare(b)
+      if (ai === -1) return 1
+      if (bi === -1) return -1
+      return ai - bi
+    })
+  }, [columns, resource.slug])
 
   const primaryKey = useMemo(() => inferPrimaryKey(rows), [rows])
   const canCreate = resource.mode === 'crud'
@@ -506,8 +516,8 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
                   >
                     <option value="">Choose field to add (optional)</option>
                     {editableColumns.map((column) => (
-                      <option key={column} value={column}>
-                        {columnLabel(column)}
+                    <option key={column} value={column}>
+                        {columnLabel(column, resource.slug)}
                       </option>
                     ))}
                   </select>
@@ -771,7 +781,7 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
             <thead>
               <tr>
                 {columns.map((column) => (
-                  <th key={column}>{columnLabel(column)}</th>
+                  <th key={column}>{columnLabel(column, resource.slug)}</th>
                 ))}
                 {(canUpdate || canDelete) && <th>Actions</th>}
               </tr>
@@ -942,7 +952,24 @@ function createEntryId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-function columnLabel(column: string) {
+function preferredFieldOrder(resourceSlug: string) {
+  if (resourceSlug === 'humor-flavors') {
+    return ['slug', 'description']
+  }
+
+  if (resourceSlug === 'humor-flavor-steps') {
+    return ['humor_flavor_id', 'order_by', 'description', 'humor_flavor_step_type_id', 'llm_model_id']
+  }
+
+  return []
+}
+
+function columnLabel(column: string, resourceSlug?: string) {
+  if (resourceSlug === 'humor-flavors') {
+    if (column === 'slug') return 'Flavor Name'
+    if (column === 'description') return 'Flavor Description'
+  }
+
   const map: Record<string, string> = {
     id: 'ID',
     created_datetime_utc: 'Created',
