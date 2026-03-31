@@ -7,7 +7,7 @@ import type { AdminResource } from '../lib/admin-resources'
 
 type GenericRow = Record<string, unknown>
 type FieldInputType = 'text' | 'number' | 'boolean' | 'null' | 'json'
-type FieldEntry = { id: string; key: string; type: FieldInputType; value: string }
+type FieldEntry = { id: string; key: string; type: FieldInputType; value: string; locked?: boolean }
 
 type ResourceTableProps = {
   resource: AdminResource
@@ -514,9 +514,9 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
                     value={fieldDraft}
                     onChange={(event) => setFieldDraft(event.target.value)}
                   >
-                    <option value="">Choose field to add (optional)</option>
+                    <option value="">{fieldPickerPlaceholder(resource.slug)}</option>
                     {editableColumns.map((column) => (
-                    <option key={column} value={column}>
+                      <option key={column} value={column}>
                         {columnLabel(column, resource.slug)}
                       </option>
                     ))}
@@ -533,6 +533,7 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
                           key: nextKey,
                           type: 'text',
                           value: '',
+                          locked: isPresetLockedField(resource.slug, nextKey),
                         },
                       ])
                       setFieldDraft('')
@@ -547,8 +548,9 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
                     <div className="field-row" key={entry.id}>
                       <input
                         className="input"
-                        placeholder="field_name"
-                        value={entry.key}
+                        placeholder="Field"
+                        value={entry.locked ? columnLabel(entry.key, resource.slug) : entry.key}
+                        disabled={entry.locked === true}
                         onChange={(event) =>
                           setFieldEntries((prev) =>
                             prev.map((item) =>
@@ -934,18 +936,18 @@ function objectToEntries(payload: GenericRow): FieldEntry[] {
 
 function inferFieldEntry(key: string, value: unknown): FieldEntry {
   if (value === null || value === undefined) {
-    return { id: createEntryId(), key, type: 'null', value: '' }
+    return { id: createEntryId(), key, type: 'null', value: '', locked: false }
   }
   if (typeof value === 'boolean') {
-    return { id: createEntryId(), key, type: 'boolean', value: value ? 'true' : 'false' }
+    return { id: createEntryId(), key, type: 'boolean', value: value ? 'true' : 'false', locked: false }
   }
   if (typeof value === 'number') {
-    return { id: createEntryId(), key, type: 'number', value: String(value) }
+    return { id: createEntryId(), key, type: 'number', value: String(value), locked: false }
   }
   if (typeof value === 'object') {
-    return { id: createEntryId(), key, type: 'json', value: JSON.stringify(value) }
+    return { id: createEntryId(), key, type: 'json', value: JSON.stringify(value), locked: false }
   }
-  return { id: createEntryId(), key, type: 'text', value: String(value) }
+  return { id: createEntryId(), key, type: 'text', value: String(value), locked: false }
 }
 
 function createEntryId() {
@@ -962,6 +964,22 @@ function preferredFieldOrder(resourceSlug: string) {
   }
 
   return []
+}
+
+function fieldPickerPlaceholder(resourceSlug: string) {
+  if (resourceSlug === 'humor-flavors') {
+    return 'Choose flavor field to add'
+  }
+
+  return 'Choose field to add (optional)'
+}
+
+function isPresetLockedField(resourceSlug: string, key: string) {
+  if (resourceSlug === 'humor-flavors') {
+    return key === 'slug' || key === 'description'
+  }
+
+  return false
 }
 
 function columnLabel(column: string, resourceSlug?: string) {
