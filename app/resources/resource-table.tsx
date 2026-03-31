@@ -34,6 +34,32 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
   const searchParams = useSearchParams()
   const [captionFlavorFilter, setCaptionFlavorFilter] = useState('')
 
+  const addFieldEntry = useCallback(
+    (rawKey: string) => {
+      const nextKey = rawKey.trim()
+      if (!nextKey) return
+
+      setFieldEntries((prev) => {
+        if (prev.some((item) => item.key === nextKey)) {
+          return prev
+        }
+
+        return [
+          ...prev,
+          {
+            id: createEntryId(),
+            key: nextKey,
+            type: defaultFieldType(nextKey),
+            value: '',
+            locked: isPresetLockedField(resource.slug, nextKey),
+          },
+        ]
+      })
+      setFieldDraft('')
+    },
+    [resource.slug]
+  )
+
   useEffect(() => {
     if (resource.slug !== 'captions') return
     setCaptionFlavorFilter(searchParams.get('flavor') ?? '')
@@ -77,8 +103,9 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
       'created_by_user_id',
       'modified_by_user_id',
     ])
-    const filtered = columns.filter((column) => !reserved.has(column))
     const preferredOrder = preferredFieldOrder(resource.slug)
+    const merged = [...new Set([...preferredOrder, ...columns])]
+    const filtered = merged.filter((column) => !reserved.has(column))
 
     return filtered.sort((a, b) => {
       const ai = preferredOrder.indexOf(a)
@@ -512,7 +539,11 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
                   <select
                     className="input"
                     value={fieldDraft}
-                    onChange={(event) => setFieldDraft(event.target.value)}
+                    onChange={(event) => {
+                      const value = event.target.value
+                      setFieldDraft(value)
+                      addFieldEntry(value)
+                    }}
                   >
                     <option value="">{fieldPickerPlaceholder(resource.slug)}</option>
                     {editableColumns.map((column) => (
@@ -521,44 +552,29 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
                       </option>
                     ))}
                   </select>
-                  <button
-                    type="button"
-                    className="btn ghost"
-                    onClick={() => {
-                      const nextKey = fieldDraft.trim() || ''
-                      setFieldEntries((prev) => [
-                        ...prev,
-                        {
-                          id: createEntryId(),
-                          key: nextKey,
-                          type: 'text',
-                          value: '',
-                          locked: isPresetLockedField(resource.slug, nextKey),
-                        },
-                      ])
-                      setFieldDraft('')
-                    }}
-                  >
-                    Add field
-                  </button>
                 </div>
 
                 <div className="field-grid">
                   {fieldEntries.map((entry) => (
                     <div className="field-row" key={entry.id}>
-                      <input
-                        className="input"
-                        placeholder="Field"
-                        value={entry.locked ? columnLabel(entry.key, resource.slug) : entry.key}
-                        disabled={entry.locked === true}
-                        onChange={(event) =>
-                          setFieldEntries((prev) =>
-                            prev.map((item) =>
-                              item.id === entry.id ? { ...item, key: event.target.value } : item
+                      {entry.locked ? (
+                        <div className="input field-label-lock" aria-label={columnLabel(entry.key, resource.slug)}>
+                          {columnLabel(entry.key, resource.slug)}
+                        </div>
+                      ) : (
+                        <input
+                          className="input"
+                          placeholder="Field"
+                          value={entry.key}
+                          onChange={(event) =>
+                            setFieldEntries((prev) =>
+                              prev.map((item) =>
+                                item.id === entry.id ? { ...item, key: event.target.value } : item
+                              )
                             )
-                          )
-                        }
-                      />
+                          }
+                        />
+                      )}
                       <select
                         className="input"
                         value={entry.type}
@@ -954,18 +970,42 @@ function objectToEntries(payload: GenericRow): FieldEntry[] {
 
 function inferFieldEntry(key: string, value: unknown): FieldEntry {
   if (value === null || value === undefined) {
-    return { id: createEntryId(), key, type: 'null', value: '', locked: false }
+    return { id: createEntryId(), key, type: 'null', value: '', locked: isPresetLockedFieldForAnyResource(key) }
   }
   if (typeof value === 'boolean') {
-    return { id: createEntryId(), key, type: 'boolean', value: value ? 'true' : 'false', locked: false }
+    return {
+      id: createEntryId(),
+      key,
+      type: 'boolean',
+      value: value ? 'true' : 'false',
+      locked: isPresetLockedFieldForAnyResource(key),
+    }
   }
   if (typeof value === 'number') {
-    return { id: createEntryId(), key, type: 'number', value: String(value), locked: false }
+    return {
+      id: createEntryId(),
+      key,
+      type: 'number',
+      value: String(value),
+      locked: isPresetLockedFieldForAnyResource(key),
+    }
   }
   if (typeof value === 'object') {
-    return { id: createEntryId(), key, type: 'json', value: JSON.stringify(value), locked: false }
+    return {
+      id: createEntryId(),
+      key,
+      type: 'json',
+      value: JSON.stringify(value),
+      locked: isPresetLockedFieldForAnyResource(key),
+    }
   }
-  return { id: createEntryId(), key, type: 'text', value: String(value), locked: false }
+  return {
+    id: createEntryId(),
+    key,
+    type: 'text',
+    value: String(value),
+    locked: isPresetLockedFieldForAnyResource(key),
+  }
 }
 
 function createEntryId() {
@@ -978,7 +1018,14 @@ function preferredFieldOrder(resourceSlug: string) {
   }
 
   if (resourceSlug === 'humor-flavor-steps') {
-    return ['humor_flavor_id', 'order_by', 'description', 'humor_flavor_step_type_id', 'llm_model_id']
+    return [
+      'humor_flavor_id',
+      'order_by',
+      'description',
+      'humor_flavor_step_type_id',
+      'llm_model_id',
+      'llm_input_type_id',
+    ]
   }
 
   return []
@@ -986,7 +1033,11 @@ function preferredFieldOrder(resourceSlug: string) {
 
 function fieldPickerPlaceholder(resourceSlug: string) {
   if (resourceSlug === 'humor-flavors') {
-    return 'Choose flavor field to add'
+    return 'Choose a flavor field'
+  }
+
+  if (resourceSlug === 'humor-flavor-steps') {
+    return 'Choose a step field'
   }
 
   return 'Choose field to add (optional)'
@@ -997,7 +1048,42 @@ function isPresetLockedField(resourceSlug: string, key: string) {
     return key === 'slug' || key === 'description'
   }
 
+  if (resourceSlug === 'humor-flavor-steps') {
+    return [
+      'humor_flavor_id',
+      'order_by',
+      'description',
+      'humor_flavor_step_type_id',
+      'llm_model_id',
+      'llm_input_type_id',
+    ].includes(key)
+  }
+
   return false
+}
+
+function isPresetLockedFieldForAnyResource(key: string) {
+  return [
+    'slug',
+    'description',
+    'humor_flavor_id',
+    'order_by',
+    'humor_flavor_step_type_id',
+    'llm_model_id',
+    'llm_input_type_id',
+  ].includes(key)
+}
+
+function defaultFieldType(key: string): FieldInputType {
+  if (
+    ['id', 'order_by', 'humor_flavor_id', 'humor_flavor_step_type_id', 'llm_model_id', 'llm_input_type_id'].includes(
+      key
+    )
+  ) {
+    return 'number'
+  }
+
+  return 'text'
 }
 
 function columnLabel(column: string, resourceSlug?: string) {
@@ -1012,9 +1098,10 @@ function columnLabel(column: string, resourceSlug?: string) {
     modified_datetime_utc: 'Updated',
     created_at: 'Created',
     updated_at: 'Updated',
-    humor_flavor_id: 'Flavor',
+    humor_flavor_id: 'Flavor ID',
     humor_flavor_step_type_id: 'Step Type',
     llm_model_id: 'Model',
+    llm_input_type_id: 'Input Type',
     llm_provider_id: 'Provider',
     profile_id: 'Profile',
     image_id: 'Image',
