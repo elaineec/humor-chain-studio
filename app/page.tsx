@@ -178,7 +178,7 @@ export default function DashboardPage() {
               <h2>Admin note</h2>
               <ul className="data-list">
                 <li><span>This app is gated to `profiles.is_superadmin` or `profiles.is_matrix_admin` users only.</span></li>
-                <li><span>Use `/resources/captions?flavor={id}` from Test Lab to review outputs for a specific humor flavor.</span></li>
+                <li><span>Use the caption resource view with a `flavor` query parameter from Test Lab to review outputs for a specific humor flavor.</span></li>
                 <li><span>The same workspace now covers both the domain model assignment and your flavor testing requirement.</span></li>
               </ul>
             </article>
