@@ -29,6 +29,7 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [uploadDescription, setUploadDescription] = useState('')
   const [flavorStepsByFlavorId, setFlavorStepsByFlavorId] = useState<Record<string, GenericRow[]>>({})
+  const [duplicatingFlavorId, setDuplicatingFlavorId] = useState<string | number | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const supabase = createSupabaseBrowserClient()
   const searchParams = useSearchParams()
@@ -443,6 +444,57 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
     setUploading(false)
   }
 
+  async function duplicateHumorFlavor(row: GenericRow) {
+    if (!supabase || !activeTable || resource.slug !== 'humor-flavors') return
+
+    const sourceFlavorId = row.id
+    if (typeof sourceFlavorId !== 'string' && typeof sourceFlavorId !== 'number') {
+      setError('This flavor cannot be duplicated because it is missing an id.')
+      return
+    }
+
+    setDuplicatingFlavorId(sourceFlavorId)
+    setError(null)
+    setSuccessMessage(null)
+
+    try {
+      const actorId = await getActorProfileId(supabase)
+      if (!actorId) {
+        throw new Error('Unable to resolve signed-in profile id for duplication.')
+      }
+
+      const flavorPayload = buildFlavorDuplicatePayload(row, rows, actorId)
+      const { data: insertedFlavor, error: insertFlavorError } = await supabase
+        .from(activeTable)
+        .insert(flavorPayload)
+        .select('*')
+        .single()
+
+      if (insertFlavorError) throw insertFlavorError
+
+      const newFlavorId = insertedFlavor.id
+      if (typeof newFlavorId !== 'string' && typeof newFlavorId !== 'number') {
+        throw new Error('Duplicated flavor did not return a valid id.')
+      }
+
+      const sourceSteps = flavorStepsByFlavorId[String(sourceFlavorId)] ?? []
+      if (sourceSteps.length) {
+        const stepPayloads = sourceSteps.map((step) => buildFlavorStepDuplicatePayload(step, newFlavorId, actorId))
+        const { error: insertStepsError } = await supabase.from('humor_flavor_steps').insert(stepPayloads)
+        if (insertStepsError) throw insertStepsError
+      }
+
+      setSuccessMessage(
+        `Duplicated flavor ${String(sourceFlavorId)} as ${readFlavorLabel(insertedFlavor)} with ${sourceSteps.length} copied steps.`
+      )
+      await loadRows()
+    } catch (err) {
+      setError(getErrorMessage(err))
+    } finally {
+      setDuplicatingFlavorId(null)
+    }
+  }
+
   return (
     <div className="resource-layout">
       <section className="panel resource-summary-panel">
@@ -762,6 +814,14 @@ export default function ResourceTable({ resource }: ResourceTableProps) {
                     <a className="btn ghost" href={`/resources/captions?flavor=${flavorKey}`}>
                       View captions
                     </a>
+                    <button
+                      className="btn"
+                      type="button"
+                      disabled={duplicatingFlavorId !== null}
+                      onClick={() => void duplicateHumorFlavor(row)}
+                    >
+                      {duplicatingFlavorId === flavorId ? 'Duplicating…' : 'Duplicate'}
+                    </button>
                     {canUpdate && (
                       <button className="btn ghost" onClick={() => beginEdit(row)}>
                         Edit
@@ -921,6 +981,104 @@ function renderCellValue(column: string, value: unknown) {
 
 function sanitizeFileName(name: string) {
   return name.toLowerCase().replace(/[^a-z0-9.\-_]/g, '-')
+}
+
+function buildFlavorDuplicatePayload(row: GenericRow, allRows: GenericRow[], actorId: string) {
+  const payload = omitManagedFields(row)
+  const nextSlug = uniqueSlug(allRows, readFlavorLabel(row))
+
+  if (typeof row.slug === 'string') {
+    payload.slug = nextSlug
+  }
+  if (typeof row.name === 'string') {
+    payload.name = humanizeDuplicateName(allRows, row.name, 'name')
+  }
+  if (typeof row.title === 'string') {
+    payload.title = humanizeDuplicateName(allRows, row.title, 'title')
+  }
+  if ('created_by_user_id' in row) {
+    payload.created_by_user_id = actorId
+  }
+  if ('modified_by_user_id' in row) {
+    payload.modified_by_user_id = actorId
+  }
+
+  return payload
+}
+
+function buildFlavorStepDuplicatePayload(step: GenericRow, flavorId: string | number, actorId: string) {
+  const payload = omitManagedFields(step)
+  payload.humor_flavor_id = flavorId
+  if ('created_by_user_id' in step) {
+    payload.created_by_user_id = actorId
+  }
+  if ('modified_by_user_id' in step) {
+    payload.modified_by_user_id = actorId
+  }
+  return payload
+}
+
+function omitManagedFields(row: GenericRow) {
+  const payload = { ...row }
+  delete payload.id
+  delete payload.created_at
+  delete payload.updated_at
+  delete payload.created_datetime_utc
+  delete payload.modified_datetime_utc
+  delete payload.created_by_user_id
+  delete payload.modified_by_user_id
+  return payload
+}
+
+function readFlavorLabel(row: GenericRow) {
+  if (typeof row.slug === 'string' && row.slug.trim()) return row.slug
+  if (typeof row.name === 'string' && row.name.trim()) return row.name
+  if (typeof row.title === 'string' && row.title.trim()) return row.title
+  if (typeof row.id === 'string' || typeof row.id === 'number') return `flavor-${String(row.id)}`
+  return 'flavor-copy'
+}
+
+function uniqueSlug(rows: GenericRow[], sourceLabel: string) {
+  const existing = new Set(
+    rows
+      .map((row) => (typeof row.slug === 'string' ? row.slug.trim().toLowerCase() : null))
+      .filter((value): value is string => Boolean(value))
+  )
+
+  const base = slugify(`${sourceLabel}-copy`)
+  let candidate = base
+  let index = 2
+  while (existing.has(candidate)) {
+    candidate = `${base}-${index}`
+    index += 1
+  }
+  return candidate
+}
+
+function humanizeDuplicateName(rows: GenericRow[], source: string, key: 'name' | 'title') {
+  const existing = new Set(
+    rows
+      .map((row) => (typeof row[key] === 'string' ? row[key].trim().toLowerCase() : null))
+      .filter((value): value is string => Boolean(value))
+  )
+
+  const base = `${source} Copy`
+  let candidate = base
+  let index = 2
+  while (existing.has(candidate.toLowerCase())) {
+    candidate = `${base} ${index}`
+    index += 1
+  }
+  return candidate
+}
+
+function slugify(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-')
 }
 
 function stringifyValue(value: unknown) {
